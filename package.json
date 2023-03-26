@@ -1,7 +1,7 @@
 {
-  "name": "WebRTC-Example",
+  "name": "webrtc-demo",
   "version": "1.0.0",
-  "description": "An 'as simple as it gets' WebRTC example.",
+  "description": "an 'as simple as it gets' webrtc demo",
   "main": "index.js",
   "scripts": {
     "start": "node nodejs-signal-server/server.js",
