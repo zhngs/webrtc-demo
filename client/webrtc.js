@@ -5,12 +5,21 @@ var peerConnection;
 var uuid;
 var serverConnection;
 
+// 一般使用这个配置
 var peerConnectionConfig = {
-  'iceServers': [
+    'iceServers': [
     {'urls': 'stun:stun.stunprotocol.org:3478'},
     {'urls': 'stun:stun.l.google.com:19302'},
-  ]
+    ]
 };
+
+// 用于测试turn服务器
+// var peerConnectionConfig = {
+//     'iceTransportPolicy':"relay",
+//     'iceServers': [
+//         {'urls': 'turn:www.xxx.com:8444?transport=udp', 'username': 'webrtc-demo', 'credential': '123456'},
+//     ] 
+// }
 
 function pageReady() {
   uuid = createUUID();
@@ -18,7 +27,7 @@ function pageReady() {
   localVideo = document.getElementById('localVideo');
   remoteVideo = document.getElementById('remoteVideo');
 
-  serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
+  serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443/signal');
   serverConnection.onmessage = gotMessageFromServer;
 
   var constraints = {
@@ -70,6 +79,7 @@ function gotMessageFromServer(message) {
 }
 
 function gotIceCandidate(event) {
+  console.log(event.candidate)
   if(event.candidate != null) {
     serverConnection.send(JSON.stringify({'ice': event.candidate, 'uuid': uuid}));
   }

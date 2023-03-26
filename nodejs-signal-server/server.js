@@ -41,6 +41,10 @@ wss.on('connection', function(ws) {
     console.log('received: %s', message);
     wss.broadcast(message);
   });
+
+  ws.on('error', function(message) {
+    console.log('error: %s', message);
+  });
 });
 
 wss.broadcast = function(data) {
