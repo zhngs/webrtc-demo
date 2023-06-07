@@ -60,8 +60,16 @@ func home(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Add("Content-Type", "text/html")
 		w.Write(f)
-	} else if r.URL.Path == "/webrtc.js" {
-		f, err := ioutil.ReadFile("client/webrtc.js")
+	} else if r.URL.Path == "/webrtc_promise.js" {
+		f, err := ioutil.ReadFile("client/webrtc_promise.js")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		w.Header().Add("Content-Type", "application/javascript")
+		w.Write(f)
+	} else if r.URL.Path == "/webrtc_async.js" {
+		f, err := ioutil.ReadFile("client/webrtc_async.js")
 		if err != nil {
 			log.Println(err)
 			return
@@ -76,7 +84,8 @@ func main() {
 	go startTurnServer() // 开启turn服务
 	http.HandleFunc("/", home)
 	http.HandleFunc("/signal", signal)
-	http.ListenAndServeTLS(":8443", "cert.pem", "key.pem", nil)
+	// http.ListenAndServeTLS(":8443", "cert.pem", "key.pem", nil)
+	http.ListenAndServe(":8443", nil)
 }
 
 func startTurnServer() {
