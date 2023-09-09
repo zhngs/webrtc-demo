@@ -7,10 +7,10 @@ let serverConnection;
 
 // 一般使用这个配置
 let peerConnectionConfig = {
-  'iceServers': [
-    { 'urls': 'stun:stun.stunprotocol.org:3478' },
-    { 'urls': 'stun:stun.l.google.com:19302' },
-  ]
+    'iceServers': [
+        { 'urls': 'stun:stun.stunprotocol.org:3478' },
+        { 'urls': 'stun:stun.l.google.com:19302' },
+    ]
 };
 
 // 用于测试turn服务器
@@ -22,85 +22,88 @@ let peerConnectionConfig = {
 // }
 
 async function onSignalMessage(message) {
-  if (!peerConnection) start(false);
+    if (!peerConnection) start(false);
 
-  let signal = JSON.parse(message.data);
+    let signal = JSON.parse(message.data);
 
-  // Ignore messages from ourself
-  if (signal.uuid == uuid) return;
+    // Ignore messages from ourself
+    if (signal.uuid == uuid) return;
 
-  try {
-    if (signal.sdp) {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-      if (signal.sdp.type == 'offer') {
-        let answer = await peerConnection.createAnswer()
-        await peerConnection.setLocalDescription(answer)
-        serverConnection.send(JSON.stringify({ 'sdp': peerConnection.localDescription, 'uuid': uuid }));
-      }
-    } else if (signal.ice) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice));
+    try {
+        if (signal.sdp) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            if (signal.sdp.type == 'offer') {
+                let answer = await peerConnection.createAnswer()
+                await peerConnection.setLocalDescription(answer)
+                console.log("answer ", answer.sdp)
+                serverConnection.send(JSON.stringify({ 'sdp': peerConnection.localDescription, 'uuid': uuid }));
+            }
+        } else if (signal.ice) {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice));
+        }
+    } catch (err) {
+        console.log(err)
     }
-  } catch (err) {
-    console.log(err)
-  }
 }
 
 async function pageReady() {
-  uuid = createUUID();
+    uuid = createUUID();
 
-  localVideo = document.getElementById('localVideo');
-  remoteVideo = document.getElementById('remoteVideo');
+    localVideo = document.getElementById('localVideo');
+    remoteVideo = document.getElementById('remoteVideo');
 
-  serverConnection = new WebSocket('ws://' + window.location.hostname + ':8443/signal');
-  serverConnection.onmessage = onSignalMessage;
+    //   serverConnection = new WebSocket('ws://' + window.location.hostname + ':8443/signal');
+    serverConnection = new WebSocket('ws://localhost:8443/signal');
+    serverConnection.onmessage = onSignalMessage;
 
-  let constraints = {
-    video: true,
-    audio: true,
-  };
+    let constraints = {
+        video: true,
+        audio: true,
+    };
 
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia(constraints)
-    localVideo.srcObject = localStream
-  } catch (err) {
-    console.log(err)
-  }
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia(constraints)
+        localVideo.srcObject = localStream
+    } catch (err) {
+        console.log(err)
+    }
 }
 
 async function start(isCaller) {
-  peerConnection = new RTCPeerConnection(peerConnectionConfig);
+    peerConnection = new RTCPeerConnection(peerConnectionConfig);
 
-  peerConnection.onicecandidate = event => {
-    console.log(event.candidate)
-    if (event.candidate != null) {
-      serverConnection.send(JSON.stringify({ 'ice': event.candidate, 'uuid': uuid }));
+    peerConnection.onicecandidate = event => {
+        console.log(event.candidate)
+        if (event.candidate != null) {
+            serverConnection.send(JSON.stringify({ 'ice': event.candidate, 'uuid': uuid }));
+        }
+    };
+
+    peerConnection.ontrack = event => {
+        console.log('got remote stream');
+        remoteVideo.srcObject = event.streams[0];
+    };
+
+    peerConnection.addStream(localStream);
+
+    if (isCaller) {
+        try {
+            let offer = await peerConnection.createOffer()
+            console.log("offer ", offer.sdp)
+            await peerConnection.setLocalDescription(offer)
+            serverConnection.send(JSON.stringify({ 'sdp': peerConnection.localDescription, 'uuid': uuid }));
+        } catch (err) {
+            console.log(err)
+        }
     }
-  };
-
-  peerConnection.ontrack = event => {
-    console.log('got remote stream');
-    remoteVideo.srcObject = event.streams[0];
-  };
-
-  peerConnection.addStream(localStream);
-
-  if (isCaller) {
-    try {
-      let offer = await peerConnection.createOffer()
-      await peerConnection.setLocalDescription(offer)
-      serverConnection.send(JSON.stringify({ 'sdp': peerConnection.localDescription, 'uuid': uuid }));
-    } catch (err) {
-      console.log(err)
-    }
-  }
 }
 
 // Taken from http://stackoverflow.com/a/105074/515584
 // Strictly speaking, it's not a real UUID, but it gets the job done here
 function createUUID() {
-  function s4() {
-    return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-  }
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+    }
 
-  return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+    return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
